@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Royal Billiards 2D - Profesyonel Bilardo Deneyimi</title>
+    <meta name="description" content="HTML5 Canvas, CSS3 ve Vanilla JS ile geliştirilmiş gerçekçi 2D fizik motoruna sahip profesyonel bilardo oyunu.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Arka Plan Atmosferik Parıltılar -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div id="gameContainer">
+        <!-- Oyun İçi HUD (Üst Kontrol ve Bilgi Paneli) -->
+        <header id="gameHUD" class="hidden">
+            <div class="hud-group">
+                <!-- 2 Oyuncu Durum Paneli -->
+                <div id="playerTurnBanner" class="player-banner">
+                    <div id="player1Card" class="player-card active-turn">
+                        <span class="player-name">OYUNCU 1</span>
+                        <span id="p1GroupBadge" class="player-group">Açık Masa</span>
+                    </div>
+                    <div class="player-vs">VS</div>
+                    <div id="player2Card" class="player-card">
+                        <span class="player-name">OYUNCU 2</span>
+                        <span id="p2GroupBadge" class="player-group">Açık Masa</span>
+                    </div>
+                </div>
+
+                <div class="hud-item" id="shotCountItem">
+                    <span class="hud-label">Vuruş</span>
+                    <span id="hudShotCount" class="hud-val">0</span>
+                </div>
+                <div id="pottedRack" title="Cebe Giren Toplar"></div>
+            </div>
+
+            <div class="hud-group">
+                <!-- Çuha Rengi Hızlı Seçici -->
+                <div class="cloth-mini-picker" title="Masa Çuhası Rengi">
+                    <button class="cloth-dot dot-green active" data-color="green" title="Klasik Yeşil"></button>
+                    <button class="cloth-dot dot-blue" data-color="blue" title="Turnuva Mavisi"></button>
+                    <button class="cloth-dot dot-burgundy" data-color="burgundy" title="Asil Bordo"></button>
+                </div>
+
+                <span id="hudModeBadge" class="hud-badge badge-mode">8-Top</span>
+                <span id="hudDiffBadge" class="hud-badge badge-beginner">Acemi</span>
+                <span id="hudCueBadge" class="hud-badge badge-cue">Klasik Ahşap</span>
+            </div>
+
+            <div class="hud-group">
+                <button id="undoBtn" class="hud-btn" title="Son Vuruşu Geri Al">
+                    ↶ Geri Al
+                </button>
+                <button id="resetBtn" class="hud-btn" title="Masayı Baştan Diz">
+                    🔄 Sıfırla
+                </button>
+                <button id="soundBtn" class="hud-btn" title="Sesi Aç/Kapat">
+                    🔊 Ses: Açık
+                </button>
+                <button id="menuBtn" class="hud-btn btn-primary" title="Ayarlara Dön">
+                    ⚙️ Menü
+                </button>
+            </div>
+        </header>
+
+        <!-- Bilardo Masası Canvas Alanı -->
+        <main id="canvasContainer">
+            <canvas id="billiardsCanvas"></canvas>
+
+            <!-- Top Elde (Ball in Hand) Bildirim Rozeti -->
+            <div id="ballInHandAlert" class="hidden">
+                ✋ TOP ELDE! Beyaz topu masada istediğiniz boş yere sürükleyin
+            </div>
+
+            <!-- Sol Kenar: Tebeşir (Chalk) Mekaniği Butonu -->
+            <div id="chalkWidget" class="hidden" title="Istakayı Tebeşirle (Miscue / Kaymayı Önler)">
+                <button id="chalkBtn" class="chalk-btn">
+                    <div class="chalk-cube">
+                        <div class="chalk-tip"></div>
+                    </div>
+                    <span class="chalk-btn-text">TEBEŞİR</span>
+                </button>
+                <div class="chalk-meter" title="Tebeşir Durumu">
+                    <div id="chalkPip1" class="chalk-pip active"></div>
+                    <div id="chalkPip2" class="chalk-pip active"></div>
+                    <div id="chalkPip3" class="chalk-pip active"></div>
+                </div>
+            </div>
+
+            <!-- Falso / Vuruş Noktası Seçici (Spin / English Selector) -->
+            <div id="spinSelectorContainer" class="hidden" title="Falso vermek için beyaz topun üzerine tıklayın veya sürükleyin">
+                <span class="spin-label">FALSO</span>
+                <div id="spinBallTarget">
+                    <div class="spin-crosshair-h"></div>
+                    <div class="spin-crosshair-v"></div>
+                    <div id="spinMarker"></div>
+                </div>
+                <div id="spinTypeText">Merkez</div>
+                <button id="spinResetBtn" title="Falsoyu Sıfırla">⟲ Sıfırla</button>
+            </div>
+
+            <!-- Yan Dikey Güç Çubuğu (Power Bar) -->
+            <div id="powerBarContainer" class="hidden" title="Vuruş Gücünü Ayarlamak İçin Aşağı Çekin">
+                <span class="power-label">GÜÇ</span>
+                <div id="powerBarTrack">
+                    <div id="powerBarFill"></div>
+                    <div id="powerKnob"></div>
+                </div>
+            </div>
+
+            <!-- Ekrandaki Güç / Vur Butonu (Mobil ve Masaüstü Basılı Tutma) -->
+            <button id="strikeBtn" class="hidden" title="Güç Toplamak İçin Basılı Tutun, Vurmak İçin Bırakın">
+                <div class="strike-btn-ring"></div>
+                <div class="strike-btn-content">
+                    <span class="strike-icon">⚡</span>
+                    <span class="strike-text">VUR</span>
+                    <span id="strikePowerPct" class="strike-pct">0%</span>
+                </div>
+            </button>
+        </main>
+
+        <!-- Kontrol İpuçları (Alt Çubuk) -->
+        <footer id="controlsHint">
+            <div class="hint-item">
+                <span class="key-badge">Fare / Dokunma</span> Nişan Al / Sürükle
+            </div>
+            <div class="hint-item">
+                <span class="key-badge">Boşluk / VUR</span> Basılı Tut & Bırak
+            </div>
+            <div class="hint-item">
+                <span class="key-badge">Tebeşir</span> Miscue Engelle
+            </div>
+            <div class="hint-item">
+                <span class="key-badge">Geri Al</span> Vuruşu İptal Et
+            </div>
+        </footer>
+
+        <!-- Toast Bildirimleri -->
+        <div id="toastContainer"></div>
+
+        <!-- ==========================================================================
+             ANA MENÜ (GLASSMORPHISM PRE-GAME MODAL)
+             ========================================================================== -->
+        <div id="startMenu" class="overlay-screen">
+            <div class="menu-card">
+                <h1 class="menu-title">ROYAL BILLIARDS 2D</h1>
+                <p class="menu-subtitle">Gerçekçi 2D Fizik & Profesyonel Bilardo Deneyimi</p>
+
+                <!-- Oyun Modu Seçimi -->
+                <div class="menu-section">
+                    <h2 class="section-title">Oyun Modu Seçimi</h2>
+                    <div class="diff-grid">
+                        <div class="mode-card active" data-mode="8ball">
+                            <div class="diff-name">👥 8-Top (Yerel 2 Oyuncu)</div>
+                            <div class="diff-desc">
+                                Sırayla oynayın (Pass & Play). Düzler / Çizgililer ataması, faulde Top Elde (Ball-in-Hand) ve 8-Top kuralları.
+                            </div>
+                        </div>
+                        <div class="mode-card" data-mode="practice">
+                            <div class="diff-name">🏋️ Serbest / Antrenman Modu</div>
+                            <div class="diff-desc">
+                                Sıra ve kural yok. Topları fareyle masada istediğiniz yere sürükleyin, "Geri Al" ile açıları tekrar tekrar çalışın.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zorluk Seviyesi Seçimi -->
+                <div class="menu-section">
+                    <h2 class="section-title">Nişan Kılavuzu (Zorluk)</h2>
+                    <div class="diff-grid">
+                        <div class="diff-card active" data-diff="beginner">
+                            <div class="diff-name">🎯 Acemi (Beginner)</div>
+                            <div class="diff-desc">
+                                Gelişmiş kılavuz çizgileri: Beyaz topun rotası, hedef top yönü ve teğetsel sekme yörüngesi.
+                            </div>
+                        </div>
+                        <div class="diff-card" data-diff="master">
+                            <div class="diff-name">⚡ Usta (Master)</div>
+                            <div class="diff-desc">
+                                Kılavuz çizgisi tamamen kapalı! Yalnızca ıstakanın açısına ve sezgilerinize güvenin.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Masa Çuhası Rengi Seçimi -->
+                <div class="menu-section">
+                    <h2 class="section-title">Masa Çuhası Rengi</h2>
+                    <div class="cloth-picker-grid">
+                        <div class="cloth-choice active" data-cloth="green">
+                            <span class="cloth-sample cloth-sample-green"></span>
+                            <span class="cloth-choice-name">Klasik Yeşil</span>
+                        </div>
+                        <div class="cloth-choice" data-cloth="blue">
+                            <span class="cloth-sample cloth-sample-blue"></span>
+                            <span class="cloth-choice-name">Turnuva Mavisi</span>
+                        </div>
+                        <div class="cloth-choice" data-cloth="burgundy">
+                            <span class="cloth-sample cloth-sample-burgundy"></span>
+                            <span class="cloth-choice-name">Asil Bordo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Istaka Seçimi -->
+                <div class="menu-section">
+                    <h2 class="section-title">Istaka Modelini Seçin</h2>
+                    <div class="cue-grid">
+                        <!-- 1. Klasik Ahşap Istaka -->
+                        <div class="cue-card active" data-cue="classic">
+                            <div class="cue-preview cue-preview-classic"></div>
+                            <div>
+                                <div class="cue-info-title">Klasik Ahşap</div>
+                                <div class="cue-stat">Güç: 1.0x (Standart)</div>
+                                <div class="cue-info-desc">Cilalı akçaağaç şaft, dengeli ağırlık ve klasik bilardo hissiyatı.</div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Karbon Fiber Istaka -->
+                        <div class="cue-card" data-cue="carbon">
+                            <div class="cue-preview cue-preview-carbon"></div>
+                            <div>
+                                <div class="cue-info-title">Karbon Fiber</div>
+                                <div class="cue-stat">Güç: 1.2x (%20 Bonus)</div>
+                                <div class="cue-info-desc">Mat siyah karbon gövde, neon şeritler ve maksimum vuruş gücü.</div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Yerçekimi (Gravity) Istakası -->
+                        <div class="cue-card" data-cue="gravity">
+                            <div class="cue-preview cue-preview-gravity"></div>
+                            <div>
+                                <div class="cue-info-title">Yerçekimi (Gravity)</div>
+                                <div class="cue-stat">Hassasiyet: Ultra Pürüzsüz</div>
+                                <div class="cue-info-desc">Kozmik parıltı, non-lineer hassas güç kontrolü ve özel vuruş partikülleri.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Oyuna Başla Butonu -->
+                <button id="startBtn" class="play-btn">
+                    MASAYA GEÇ & OYNA
+                </button>
+            </div>
+        </div>
+
+        <!-- ==========================================================================
+             OYUN SONU MODALI (ZAFER / YENİLGİ)
+             ========================================================================== -->
+        <div id="endGameModal" class="overlay-screen hidden">
+            <div class="menu-card" style="max-width: 440px;">
+                <h2 id="modalTitle" class="menu-title">🏆 ZAFER!</h2>
+                <p id="modalDesc" class="menu-subtitle" style="margin-bottom: 16px;">Tüm topları başarıyla ceplere soktunuz.</p>
+                <div id="modalScore" style="font-size: 1.3rem; font-weight: 700; margin-bottom: 24px; color: var(--accent-gold);">
+                    Toplam Vuruş: 0
+                </div>
+                <button id="modalBtn" class="play-btn">
+                    YENİDEN OYNA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modüler Script Dosyaları -->
+    <script src="src/audio.js"></script>
+    <script src="src/physics.js"></script>
+    <script src="src/table.js"></script>
+    <script src="src/cue.js"></script>
+    <script src="src/game.js"></script>
+</body>
+</html>
